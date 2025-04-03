@@ -692,11 +692,39 @@ impl TimeZoneProvider for FsTzdbProvider {
 
     fn get_named_tz_transition(
         &self,
-        _identifier: &str,
-        _epoch_nanoseconds: i128,
-        _direction: TransitionDirection,
+        identifier: &str,
+        epoch_nanoseconds: i128,
+        direction: TransitionDirection,
     ) -> TemporalResult<Option<EpochNanoseconds>> {
-        Err(TemporalError::general("Not yet implemented."))
+        let tzif = self.get(identifier)?;
+        let epoch_seconds = Seconds((epoch_nanoseconds / 1_000_000_000) as i64);
+        let db = tzif.get_data_block2()?;
+    
+        // Find the transition index closest to the given epoch.
+        let idx = match db.transition_times.binary_search(&epoch_seconds) {
+            Ok(idx) => idx,  // Exact match
+            Err(idx) => idx, // Insertion point
+        };
+    
+        // Determine the next/previous transition based on direction.
+        let transition_time = match direction {
+            TransitionDirection::Next => {
+                if idx < db.transition_times.len() {
+                    Some(db.transition_times[idx].0)
+                } else {
+                    None // No future transitions
+                }
+            }
+            TransitionDirection::Previous => {
+                if idx > 0 {
+                    Some(db.transition_times[idx - 1].0)
+                } else {
+                    None // No past transitions
+                }
+            }
+        };
+    
+        Ok(transition_time.map(|s| EpochNanoseconds::try_from(s as i128 * 1_000_000_000)).transpose()?)
     }
 }
 

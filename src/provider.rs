@@ -69,7 +69,7 @@ pub trait TimeZoneProvider {
         epoch_nanoseconds: i128,
     ) -> TemporalResult<TimeZoneOffset>;
 
-    // TODO: implement and stabalize
+    /// Returns the next or previous time zone transition for the given epoch nanoseconds.
     fn get_named_tz_transition(
         &self,
         identifier: &str,
